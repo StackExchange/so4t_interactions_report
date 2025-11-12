@@ -1,5 +1,5 @@
-# Stack Overflow for Teams Interactions (so4t_interactions)
-An API script for Stack Overflow for Teams that creates a chord diagram, demonstrating how teams are interacting within the product.
+# Stack Internal Interactions (so4t_interactions)
+An API script for Stack Internal that creates a chord diagram, demonstrating how teams are interacting within the product.
 
 Example chord diagram:
 
@@ -27,21 +27,21 @@ Example chord diagram:
 
 For the Business tier, you'll need a [personal access token](https://stackoverflowteams.help/en/articles/4385859-stack-overflow-for-teams-api) (PAT). You'll need to obtain an API key and an access token for Enterprise. Documentation for creating an Enterprise key and token can be found within your instance at this url: `https://[your_site]/api/docs/authentication`
 
-**Before proceeding, please note a critical step when creating your API Application in Stack Overflow Enterprise for Access Token generation:**
+**Before proceeding, please note a critical step when creating your API Application in Stack Internal (Enterprise) for Access Token generation:**
 
 **Generating an Access Token**
 
 To generate an Access Token for Enterprise, you must first ensure your API Application is correctly configured:
 
-* **API Application "Domain" Field Requirement:** When creating your API Application (where you obtain your Client ID and Client Secret), the "Domain" field *must* be populated with the base URL of your Stack Overflow Enterprise instance (e.g., `https://your.so-enterprise.url`). **Although the UI may mark this field as 'Optional,' failure to populate it will prevent Access Token generation and lead to a `"redirect_uri is not configured"` error during the OAuth flow.**
+* **API Application "Domain" Field Requirement:** When creating your API Application (where you obtain your Client ID and Client Secret), the "Domain" field *must* be populated with the base URL of your Stack Internal (Enterprise) instance (e.g., `https://your.stack-internal-enterprise.url`). **Although the UI may mark this field as 'Optional,' failure to populate it will prevent Access Token generation and lead to a `"redirect_uri is not configured"` error during the OAuth flow.**
 
 Once your API Application is configured with a valid Domain, follow these steps to generate your Access Token:
 
 * Go to the page where you created your API key. Take note of the "Client ID" associated with your API key.
 * Go to the following URL, replacing the base URL, the `client_id`, and the base URL of the `redirect_uri` with your own:
-`https://YOUR.SO-ENTERPRISE.URL/oauth/dialog?client_id=111&redirect_uri=https://YOUR.SO-ENTERPRISE.URL/oauth/login_success`
-* You may be prompted to log in to Stack Overflow Enterprise if you're not already. Either way, you'll be redirected to a page that simply says "Authorizing Application."
-* In the URL of that page, you'll find your access token. Example: `https://YOUR.SO-ENTERPRISE.URL/oauth/login_success#access_token=YOUR_TOKEN`
+`https://YOUR.SO-INTERNAL-ENTERPRISE.URL/oauth/dialog?client_id=111&redirect_uri=https://YOUR.SO-INTERNAL-ENTERPRISE.URL/oauth/login_success`
+* You may be prompted to log in to Stack Internal (Enterprise) if you're not already. Either way, you'll be redirected to a page that simply says "Authorizing Application."
+* In the URL of that page, you'll find your access token. Example: `https://YOUR.SO-INTERNAL-ENTERPRISE.URL/oauth/login_success#access_token=YOUR_TOKEN`
 
 **Note on Access Token Requirements:**
 While API v3 now generally allows querying with just an API key for most GET requests, certain paths and data (e.g., `/images` and the email attribute on a `User` object) still specifically require an Access Token for access. If you encounter permissions errors on such paths, ensure you are using an Access Token.
@@ -53,9 +53,9 @@ Run the script using the following format, replacing the URL, token, and/or key 
 - Business: `python3 so4t_interactions.py --url "https://stackoverflowteams.com/c/TEAM-NAME" --token "YOUR_TOKEN"`
 - Enterprise: `python3 so4t_interactions.py --url "https://SUBDOMAIN.stackenterprise.co" --key "YOUR_KEY"`
 
-At the beginning of the script, a small Chrome window will appear, prompting you to log in to your instance of Stack Overflow Enterprise. This is necessary to obtain data that is not currently available via the API.
+At the beginning of the script, a small Chrome window will appear, prompting you to log in to your instance of Stack Internal (Enterprise). This is necessary to obtain data that is not currently available via the API.
 
-After logging in, the Chrome window will disappear, and the script will proceed in the terminal window. Creating a login session is necessary to gather additional data from Stack Overflow for Teams that are unavailable via the API.
+After logging in, the Chrome window will disappear, and the script will proceed in the terminal window. Creating a login session is necessary to gather additional data from Stack Internal that are unavailable via the API.
 
 The script can take several minutes to run. As it runs, it will update the terminal window with the tasks it performs.
 
@@ -99,4 +99,4 @@ Example usage:
 ## Support, security, and legal
 If you encounter problems using the script, please leave feedback in the Github Issues. You can also clone and change the script to suit your needs. It is provided as-is, with no warranty or guarantee of any kind.
 
-All data is handled locally on the device from which the script is run. The script does not transmit data to other parties, such as Stack Overflow. All of the API calls performed are read-only, so there is no risk of editing or adding content on your Stack Overflow for Teams instance.
+All data is handled locally on the device from which the script is run. The script does not transmit data to other parties, such as Stack Overflow. All of the API calls performed are read-only, so there is no risk of editing or adding content on your Stack Internal instance.
