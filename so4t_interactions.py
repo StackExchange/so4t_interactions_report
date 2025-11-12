@@ -1,5 +1,5 @@
 '''
-This Python script is a working proof of concept example of using Stack Overflow APIs for an Interactions Report. 
+This Python script is a working proof of concept example of using Stack Internal APIs for an Interactions Report. 
 If you run into difficulties, please leave feedback in the Github Issues.
 '''
 
@@ -30,7 +30,7 @@ def get_args():
     parser = argparse.ArgumentParser(
         prog='so4t_interactions.py',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description='Grab data from Stack Overflow for Teams and create \
+        description='Grab data from Stack Internal and create \
         a chord diagram of cross-silo interactions',
         epilog = 'Usage examples: \n'
                 'python3 so4t_interactions.py --url "https://SUBDOMAIN.stackoverflow.com" '
@@ -39,13 +39,13 @@ def get_args():
                 '--key "YOUR_KEY --token "YOUR_TOKEN" \n\n')
     parser.add_argument('--url', 
                         type=str, 
-                        help='[REQUIRED] Base URL for Stack Overflow for Teams site')
+                        help='[REQUIRED] Base URL for Stack Internal site')
     parser.add_argument('--token',
                         type=str,
                         help='[REQUIRED] API token')
     parser.add_argument('--key',
                         type=str,
-                        help='API key. Only required for Stack Overflow Enterprise sites')
+                        help='API key. Only required for Enterprise sites')
     parser.add_argument('--team-rename',
                         type=str,
                         help='CSV file containing changes to team names. Not to be used with '
@@ -114,7 +114,7 @@ def get_user_data(client, team_rename=None, team_numbers=True):
 def get_question_data(client):
 
     # Create a filter to get additional data fields for questions/answers/comments
-    if client.soe: # For SO Enterprise, create a custom filter
+    if client.soe: # For Stack Internal (Enterprise), create a custom filter
         filter_attributes = [
             "answer.comment_count",
             "answer.comments",
@@ -127,7 +127,7 @@ def get_question_data(client):
             "question.up_vote_count",
         ]
         filter_string = client.create_filter(filter_attributes)
-    else: # As of 2023.08.14 filter creation is not working for SO Business
+    else: # As of 2023.08.14 filter creation is not working for Stack Internal Business
         filter_string = '!)Rm-Ag_bMMFYDy3UqfEQNPt7'
 
     questions = client.get_all_questions(filter_string)
