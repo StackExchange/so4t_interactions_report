@@ -7,7 +7,7 @@ Example chord diagram:
 
 
 ## Requirements
-* Python 3.9 or higher ([download](https://www.python.org/downloads/))
+* Python 3.10 or higher ([download](https://www.python.org/downloads/))
 * Operating system: Linux, MacOS, or Windows
 * "Department" assertion enabled in SAML configuration (admin settings)
 
