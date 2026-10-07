@@ -2,13 +2,13 @@
 
 Create a chord diagram showing how departments interact through questions, answers, and comments in Stack Internal.
 
-**Use [so4t_interactions.html](so4t_interactions.html).** It is the current, standalone version and uses **API v3 only**. The Python scripts and `requirements.txt` remain in this repository for historical reference; they are not the recommended way to run the report and may still depend on API v2.
+**Use [so4t_interactions.html](so4t_interactions.html).** It is the current browser version and uses **API v3 only**. Keep the `assets/` folder beside the HTML file so its bundled Stacks styles load. The Python scripts and `requirements.txt` remain in this repository for historical reference; they are not the recommended way to run the report and may still depend on API v2.
 
 ![Example chord diagram](Examples/chord_diagram.png)
 
 ## Run the HTML version
 
-1. Download this repository and open `so4t_interactions.html` in a modern browser. No Python installation, web server, build step, or other file is needed.
+1. Download this repository and open `so4t_interactions.html` in a modern browser, keeping `assets/` beside it. No Python installation, web server, or build step is needed.
 2. Enter your Stack Internal site URL:
    - Enterprise: `https://your-site.stackenterprise.co` (or your custom Enterprise domain).
    - Business: `https://stackoverflowteams.com/c/your-team`.

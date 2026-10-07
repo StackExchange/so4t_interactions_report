@@ -5,119 +5,108 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>Stack Internal Interactions</title>
+  <link rel="stylesheet" href="assets/stacks.min.css">
+  <link rel="stylesheet" href="assets/report-ui.css">
   <style>
-    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #182338; background: #f5f7fb; }
-    * { box-sizing: border-box; }
-    body { margin: 0; }
-    main { max-width: 1180px; margin: 0 auto; padding: 30px 22px 60px; }
-    h1 { margin: 0 0 8px; font-size: clamp(1.9rem, 4vw, 2.7rem); letter-spacing: -.035em; }
-    h2 { margin: 0 0 18px; font-size: 1.25rem; }
-    p { line-height: 1.5; }
-    .intro { color: #536176; margin: 0 0 25px; max-width: 68ch; }
-    .panel { background: #fff; border: 1px solid #dbe2ed; border-radius: 14px; box-shadow: 0 6px 24px #1823380a; padding: 24px; margin-bottom: 22px; }
-    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
-    label { display: block; font-weight: 650; font-size: .92rem; margin-bottom: 7px; }
-    input[type="url"], input[type="password"], input[type="date"], input[type="file"] { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid #aebbcf; border-radius: 8px; background: #fff; color: inherit; font: inherit; }
-    input:focus-visible, button:focus-visible { outline: 3px solid #81b4f7; outline-offset: 2px; }
+    body.report-app { --report-width: 1180px; }
+    .panel { padding: 24px; margin-bottom: 22px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 20px; }
     .span2 { grid-column: 1 / -1; }
-    .hint { display: block; margin-top: 6px; color: #607087; font-size: .82rem; line-height: 1.4; }
-    .options { display: flex; flex-wrap: wrap; gap: 16px 26px; align-items: center; }
-    .checkbox { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 500; }
-    .checkbox input { width: 17px; height: 17px; margin: 0; }
-    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
-    button { border: 1px solid #b6c5d9; border-radius: 8px; background: #fff; color: #173659; font: inherit; font-weight: 650; padding: 10px 16px; cursor: pointer; }
-    button:hover:not(:disabled) { background: #edf4ff; }
-    button.primary { background: #155fbd; border-color: #155fbd; color: white; }
-    button.primary:hover:not(:disabled) { background: #104e9e; }
-    button:disabled { opacity: .45; cursor: not-allowed; }
-    #status { min-height: 28px; margin: 16px 0 0; color: #35506e; }
-    #status.error { color: #a32626; }
-    .privacy { margin: 12px 0 0; color: #607087; font-size: .85rem; }
+    .form-field .s-description { display: block; margin-top: 5px; }
+    .required-note { margin: 0 0 16px; color: var(--black-500); font-size: 13px; }
+    .options { display: flex; align-items: center; }
+    .options .s-label { margin: 0; font-weight: 400; }
+    .actions { margin-top: 22px; }
+    #status { margin: 16px 0 0; white-space: pre-wrap; }
+    .privacy { margin: 14px 0 0; font-size: 13px; }
     .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
-    .stat { padding: 13px; background: #f2f6fc; border-radius: 9px; }
+    .stat { padding: 14px; }
     .stat strong { display: block; font-size: 1.45rem; }
-    .stat span { color: #596a82; font-size: .85rem; }
-    .report-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 14px; }
-    .chart-wrap { overflow: auto; background: #fbfcff; border: 1px solid #e4e9f1; border-radius: 10px; text-align: center; }
+    .stat span { color: var(--black-500); font-size: 13px; }
+    .report-actions { margin-bottom: 16px; }
+    .chart-wrap { overflow: auto; background: var(--black-050); border: 1px solid var(--bc-light); border-radius: var(--br-sm); text-align: center; }
     #chart { width: min(100%, 850px); height: auto; min-width: 500px; display: block; margin: auto; }
-    .ribbon { fill-opacity: .65; stroke: #fff; stroke-width: .5; transition: fill-opacity .15s; }
+    .ribbon { fill-opacity: .65; stroke: var(--white); stroke-width: .5; transition: fill-opacity .15s; }
     .ribbon.dim { fill-opacity: .08; }
-    .arc { stroke: #fff; stroke-width: 1; cursor: default; }
-    .arc-label { fill: #2c3e56; font-size: 12px; font-weight: 600; }
-    #tooltip { min-height: 23px; margin: 10px 0; color: #344d6e; font-weight: 600; }
+    .arc { stroke: var(--white); stroke-width: 1; cursor: default; }
+    .arc-label { fill: var(--black); font-size: 12px; font-weight: 600; }
+    #tooltip { min-height: 23px; margin: 10px 0; color: var(--black-500); font-weight: 600; }
     .details { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(320px, 2fr); gap: 22px; margin-top: 20px; }
     .legend { list-style: none; padding: 0; margin: 0; max-height: 440px; overflow: auto; }
-    .legend li { display: flex; gap: 9px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid #edf0f5; }
-    .swatch { flex: 0 0 12px; width: 12px; height: 12px; border-radius: 3px; }
-    .legend-count { margin-left: auto; color: #66758b; font-variant-numeric: tabular-nums; }
-    .table-wrap { max-height: 440px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
-    table { width: 100%; border-collapse: collapse; text-align: left; }
-    th, td { padding: 8px 10px; border-bottom: 1px solid #e8edf3; }
-    th { position: sticky; top: 0; background: #f4f7fb; }
-    td:last-child, th:last-child { text-align: right; }
-    .note { color: #64738a; font-size: .88rem; }
-    [hidden] { display: none !important; }
-    @media (max-width: 700px) { .grid, .details { grid-template-columns: 1fr; } .span2 { grid-column: auto; } .stats { grid-template-columns: repeat(2, 1fr); } .panel { padding: 18px; } }
+    .legend li { display: flex; gap: 9px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--bc-light); }
+    .swatch { flex: 0 0 12px; width: 12px; height: 12px; border-radius: var(--br-sm); }
+    .legend-count { margin-left: auto; color: var(--black-500); font-variant-numeric: tabular-nums; }
+    .table-wrap { max-height: 440px; overflow: auto; }
+    .s-table th { position: sticky; top: 0; }
+    .s-table td:last-child, .s-table th:last-child { text-align: right; }
+    .note { font-size: 14px; }
+    @media (max-width: 700px) {
+      .grid, .details { grid-template-columns: 1fr; }
+      .span2 { grid-column: auto; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
   </style>
 </head>
-<body>
+<body class="report-app">
+<div class="brand-bar"><div class="brand-bar-inner"><span class="brand-name">Stack Internal</span><span class="brand-meta">Browser tools · API v3</span></div></div>
 <main>
-  <h1>Stack Internal Interactions</h1>
-  <p class="intro">See how departments exchange answers and comments. This page reads API v3 directly and builds the report in your browser.</p>
+  <header class="page-header"><h1 class="fs-headline2">Interactions report</h1>
+  <p class="intro">See how departments exchange answers and comments. This page reads API v3 directly and builds the report in your browser.</p></header>
 
   <section class="panel" aria-labelledby="setup-title">
-    <h2 id="setup-title">Create a report</h2>
+    <h2 class="fs-title" id="setup-title">Create a report</h2>
     <form id="report-form">
+      <p class="required-note">Required fields <abbr class="s-required-symbol" title="required">*</abbr></p>
       <div class="grid">
-        <div class="span2">
-          <label for="site-url">Stack Internal site URL</label>
-          <input id="site-url" type="url" required placeholder="https://your-site.stackenterprise.co or https://stackoverflowteams.com/c/your-team" spellcheck="false">
-          <small class="hint">Enterprise: your site URL. Business: your team URL ending in /c/team-name.</small>
+        <div class="span2 form-field s-form-group">
+          <label class="s-label" for="site-url">Stack Internal site URL <abbr class="s-required-symbol" title="required">*</abbr></label>
+          <input class="s-input" id="site-url" type="url" required placeholder="https://your-site.stackenterprise.co or https://stackoverflowteams.com/c/your-team" spellcheck="false">
+          <small class="s-description">Enterprise: your site URL. Business: your team URL ending in /c/team-name.</small>
         </div>
-        <div class="span2">
-          <label for="access-token">API v3 access token</label>
-          <input id="access-token" type="password" required autocomplete="off" spellcheck="false">
-          <small class="hint">Use a token with read access to users, questions, answers, and comments. It stays in this browser tab.</small>
-        </div>
-        <div>
-          <label for="from-date">Questions created from (optional)</label>
-          <input id="from-date" type="date">
+        <div class="span2 form-field s-form-group">
+          <label class="s-label" for="access-token">API v3 access token <abbr class="s-required-symbol" title="required">*</abbr></label>
+          <input class="s-input" id="access-token" type="password" required autocomplete="off" spellcheck="false">
+          <small class="s-description">Use a token with read access to users, questions, answers, and comments. It stays in this browser tab.</small>
         </div>
         <div>
-          <label for="to-date">Questions created through (optional)</label>
-          <input id="to-date" type="date">
+          <label class="s-label" for="from-date">Questions created from (optional)</label>
+          <input class="s-input" id="from-date" type="date">
+        </div>
+        <div>
+          <label class="s-label" for="to-date">Questions created through (optional)</label>
+          <input class="s-input" id="to-date" type="date">
         </div>
         <div class="span2">
-          <label for="rename-file">Department rename CSV (optional)</label>
-          <input id="rename-file" type="file" accept=".csv,text/csv">
-          <small class="hint">Columns: old_team_name,new_team_name. Matching department names are replaced before counting.</small>
+          <label class="s-label" for="rename-file">Department rename CSV (optional)</label>
+          <input class="s-input" id="rename-file" type="file" accept=".csv,text/csv">
+          <small class="s-description">Columns: old_team_name,new_team_name. Matching department names are replaced before counting.</small>
         </div>
         <div class="span2 options">
-          <label class="checkbox" for="remove-numbers"><input id="remove-numbers" type="checkbox">Remove trailing numbers from department names (for example, Eng2.1 → Eng)</label>
+          <div class="s-checkbox"><input id="remove-numbers" type="checkbox"><label class="s-label" for="remove-numbers">Remove trailing numbers from department names (for example, Eng2.1 → Eng)</label></div>
         </div>
       </div>
       <div class="actions">
-        <button class="primary" id="run-button" type="submit">Build report</button>
-        <button id="cancel-button" type="button" hidden>Cancel</button>
+        <button class="s-btn" id="run-button" type="submit">Build report</button>
+        <button class="s-btn s-btn__tonal" id="cancel-button" type="button" hidden>Cancel</button>
       </div>
-      <p id="status" role="status" aria-live="polite"></p>
+      <p id="status" class="status s-notice s-notice__info" role="status" aria-live="polite"></p>
       <p class="privacy">Only read-only API calls are made. The token and source data are not saved by this page or sent anywhere else.</p>
     </form>
   </section>
 
   <section class="panel" id="report" aria-labelledby="report-title" hidden>
-    <h2 id="report-title">Department interactions</h2>
+    <h2 class="fs-title" id="report-title">Department interactions</h2>
     <div class="stats" id="stats"></div>
     <div class="report-actions">
-      <button id="download-csv" type="button">Download matrix CSV</button>
-      <button id="download-svg" type="button">Download diagram SVG</button>
+      <button class="s-btn" id="download-csv" type="button">Download matrix CSV</button>
+      <button class="s-btn s-btn__tonal" id="download-svg" type="button">Download diagram SVG</button>
     </div>
     <p class="note">Each department pair counts once per question or answer discussion, even if several people from the same department respond. Same-department activity is excluded.</p>
     <div class="chart-wrap"><svg id="chart" viewBox="0 0 850 850" role="img" aria-label="Chord diagram of department interactions"></svg></div>
     <p id="tooltip" aria-live="polite"></p>
     <div class="details">
-      <div><h2>Departments</h2><ul class="legend" id="legend"></ul></div>
-      <div><h2>Connections</h2><div class="table-wrap"><table><thead><tr><th>Department</th><th>Department</th><th>Interactions</th></tr></thead><tbody id="connections"></tbody></table></div></div>
+      <div><h2 class="fs-title">Departments</h2><ul class="legend" id="legend"></ul></div>
+      <div><h2 class="fs-title">Connections</h2><div class="table-wrap s-table-container"><table class="s-table s-table__bx"><thead><tr><th scope="col">Department</th><th scope="col">Department</th><th scope="col">Interactions</th></tr></thead><tbody id="connections"></tbody></table></div></div>
     </div>
     <p class="note" id="skipped-note"></p>
   </section>
@@ -491,7 +480,8 @@ $("report-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (currentController) return;
   const status = $("status");
-  status.classList.remove("error");
+  status.classList.remove("s-notice__danger");
+  status.classList.add("s-notice__info");
   lastReport = null; $("report").hidden = true;
   try {
     const base = apiBase($("site-url").value);
@@ -510,7 +500,8 @@ $("report-form").addEventListener("submit", async (event) => {
     status.textContent = `Report ready: ${report.stats.questions.toLocaleString()} questions processed.`;
   } catch (error) {
     currentController?.abort();
-    status.classList.add("error");
+    status.classList.remove("s-notice__info");
+    status.classList.add("s-notice__danger");
     status.textContent = error.name === "AbortError" ? "Report cancelled." : error.message;
   } finally {
     currentController = null;
