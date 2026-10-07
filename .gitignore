@@ -14,6 +14,7 @@ env/
 users.json
 interaction_data.json
 *.html
+!so4t_interactions.html
 
 # OS
 .DS_Store

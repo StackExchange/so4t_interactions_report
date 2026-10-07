@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Stack Internal Interactions</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #182338; background: #f5f7fb; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1180px; margin: 0 auto; padding: 30px 22px 60px; }
+    h1 { margin: 0 0 8px; font-size: clamp(1.9rem, 4vw, 2.7rem); letter-spacing: -.035em; }
+    h2 { margin: 0 0 18px; font-size: 1.25rem; }
+    p { line-height: 1.5; }
+    .intro { color: #536176; margin: 0 0 25px; max-width: 68ch; }
+    .panel { background: #fff; border: 1px solid #dbe2ed; border-radius: 14px; box-shadow: 0 6px 24px #1823380a; padding: 24px; margin-bottom: 22px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
+    label { display: block; font-weight: 650; font-size: .92rem; margin-bottom: 7px; }
+    input[type="url"], input[type="password"], input[type="date"], input[type="file"] { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid #aebbcf; border-radius: 8px; background: #fff; color: inherit; font: inherit; }
+    input:focus-visible, button:focus-visible { outline: 3px solid #81b4f7; outline-offset: 2px; }
+    .span2 { grid-column: 1 / -1; }
+    .hint { display: block; margin-top: 6px; color: #607087; font-size: .82rem; line-height: 1.4; }
+    .options { display: flex; flex-wrap: wrap; gap: 16px 26px; align-items: center; }
+    .checkbox { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 500; }
+    .checkbox input { width: 17px; height: 17px; margin: 0; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+    button { border: 1px solid #b6c5d9; border-radius: 8px; background: #fff; color: #173659; font: inherit; font-weight: 650; padding: 10px 16px; cursor: pointer; }
+    button:hover:not(:disabled) { background: #edf4ff; }
+    button.primary { background: #155fbd; border-color: #155fbd; color: white; }
+    button.primary:hover:not(:disabled) { background: #104e9e; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    #status { min-height: 28px; margin: 16px 0 0; color: #35506e; }
+    #status.error { color: #a32626; }
+    .privacy { margin: 12px 0 0; color: #607087; font-size: .85rem; }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .stat { padding: 13px; background: #f2f6fc; border-radius: 9px; }
+    .stat strong { display: block; font-size: 1.45rem; }
+    .stat span { color: #596a82; font-size: .85rem; }
+    .report-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 14px; }
+    .chart-wrap { overflow: auto; background: #fbfcff; border: 1px solid #e4e9f1; border-radius: 10px; text-align: center; }
+    #chart { width: min(100%, 850px); height: auto; min-width: 500px; display: block; margin: auto; }
+    .ribbon { fill-opacity: .65; stroke: #fff; stroke-width: .5; transition: fill-opacity .15s; }
+    .ribbon.dim { fill-opacity: .08; }
+    .arc { stroke: #fff; stroke-width: 1; cursor: default; }
+    .arc-label { fill: #2c3e56; font-size: 12px; font-weight: 600; }
+    #tooltip { min-height: 23px; margin: 10px 0; color: #344d6e; font-weight: 600; }
+    .details { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(320px, 2fr); gap: 22px; margin-top: 20px; }
+    .legend { list-style: none; padding: 0; margin: 0; max-height: 440px; overflow: auto; }
+    .legend li { display: flex; gap: 9px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid #edf0f5; }
+    .swatch { flex: 0 0 12px; width: 12px; height: 12px; border-radius: 3px; }
+    .legend-count { margin-left: auto; color: #66758b; font-variant-numeric: tabular-nums; }
+    .table-wrap { max-height: 440px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #e8edf3; }
+    th { position: sticky; top: 0; background: #f4f7fb; }
+    td:last-child, th:last-child { text-align: right; }
+    .note { color: #64738a; font-size: .88rem; }
+    [hidden] { display: none !important; }
+    @media (max-width: 700px) { .grid, .details { grid-template-columns: 1fr; } .span2 { grid-column: auto; } .stats { grid-template-columns: repeat(2, 1fr); } .panel { padding: 18px; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Stack Internal Interactions</h1>
+  <p class="intro">See how departments exchange answers and comments. This page reads API v3 directly and builds the report in your browser.</p>
+
+  <section class="panel" aria-labelledby="setup-title">
+    <h2 id="setup-title">Create a report</h2>
+    <form id="report-form">
+      <div class="grid">
+        <div class="span2">
+          <label for="site-url">Stack Internal site URL</label>
+          <input id="site-url" type="url" required placeholder="https://your-site.stackenterprise.co or https://stackoverflowteams.com/c/your-team" spellcheck="false">
+          <small class="hint">Enterprise: your site URL. Business: your team URL ending in /c/team-name.</small>
+        </div>
+        <div class="span2">
+          <label for="access-token">API v3 access token</label>
+          <input id="access-token" type="password" required autocomplete="off" spellcheck="false">
+          <small class="hint">Use a token with read access to users, questions, answers, and comments. It stays in this browser tab.</small>
+        </div>
+        <div>
+          <label for="from-date">Questions created from (optional)</label>
+          <input id="from-date" type="date">
+        </div>
+        <div>
+          <label for="to-date">Questions created through (optional)</label>
+          <input id="to-date" type="date">
+        </div>
+        <div class="span2">
+          <label for="rename-file">Department rename CSV (optional)</label>
+          <input id="rename-file" type="file" accept=".csv,text/csv">
+          <small class="hint">Columns: old_team_name,new_team_name. Matching department names are replaced before counting.</small>
+        </div>
+        <div class="span2 options">
+          <label class="checkbox" for="remove-numbers"><input id="remove-numbers" type="checkbox">Remove trailing numbers from department names (for example, Eng2.1 → Eng)</label>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="run-button" type="submit">Build report</button>
+        <button id="cancel-button" type="button" hidden>Cancel</button>
+      </div>
+      <p id="status" role="status" aria-live="polite"></p>
+      <p class="privacy">Only read-only API calls are made. The token and source data are not saved by this page or sent anywhere else.</p>
+    </form>
+  </section>
+
+  <section class="panel" id="report" aria-labelledby="report-title" hidden>
+    <h2 id="report-title">Department interactions</h2>
+    <div class="stats" id="stats"></div>
+    <div class="report-actions">
+      <button id="download-csv" type="button">Download matrix CSV</button>
+      <button id="download-svg" type="button">Download diagram SVG</button>
+    </div>
+    <p class="note">Each department pair counts once per question or answer discussion, even if several people from the same department respond. Same-department activity is excluded.</p>
+    <div class="chart-wrap"><svg id="chart" viewBox="0 0 850 850" role="img" aria-label="Chord diagram of department interactions"></svg></div>
+    <p id="tooltip" aria-live="polite"></p>
+    <div class="details">
+      <div><h2>Departments</h2><ul class="legend" id="legend"></ul></div>
+      <div><h2>Connections</h2><div class="table-wrap"><table><thead><tr><th>Department</th><th>Department</th><th>Interactions</th></tr></thead><tbody id="connections"></tbody></table></div></div>
+    </div>
+    <p class="note" id="skipped-note"></p>
+  </section>
+</main>
+<script>
+"use strict";
+
+const $ = (id) => document.getElementById(id);
+const svgNS = "http://www.w3.org/2000/svg";
+let currentController = null;
+let lastReport = null;
+
+function apiBase(siteInput) {
+  const url = new URL(siteInput.trim());
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
+    throw new Error("Enter an HTTPS site URL without a username, query, or fragment.");
+  }
+  const path = url.pathname.replace(/\/+$/, "");
+  if (url.hostname === "stackoverflowteams.com" || url.hostname === "www.stackoverflowteams.com") {
+    const match = /^\/c\/([^/]+)$/.exec(path);
+    if (!match) throw new Error("Business URLs must look like https://stackoverflowteams.com/c/team-name.");
+    return `https://api.stackoverflowteams.com/v3/teams/${encodeURIComponent(decodeURIComponent(match[1]))}`;
+  }
+  if (url.hostname === "api.stackoverflowteams.com") {
+    if (!/^\/v3\/teams\/[^/]+$/.test(path)) throw new Error("Enter a Business team URL or its API v3 team URL.");
+    return url.origin + path;
+  }
+  if (path && path !== "/api/v3") throw new Error("Enterprise URLs must be the site root or end in /api/v3.");
+  return url.origin + "/api/v3";
+}
+
+function abortableWait(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(new DOMException("Cancelled", "AbortError"));
+    const done = () => { clearTimeout(timer); signal.removeEventListener("abort", onAbort); resolve(); };
+    const onAbort = () => { clearTimeout(timer); reject(new DOMException("Cancelled", "AbortError")); };
+    const timer = setTimeout(done, ms);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+class ApiV3 {
+  constructor(base, token, signal) {
+    this.base = base;
+    this.token = token;
+    this.signal = signal;
+    this.pauseUntil = 0;
+  }
+
+  async get(path, query = {}) {
+    const url = new URL(this.base + path);
+    for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const pause = this.pauseUntil - Date.now();
+      if (pause > 0) await abortableWait(pause, this.signal);
+      let response;
+      try {
+        response = await fetch(url, {
+          method: "GET",
+          headers: { "Authorization": `Bearer ${this.token}`, "Accept": "application/json" },
+          credentials: "omit",
+          referrerPolicy: "no-referrer",
+          signal: this.signal
+        });
+      } catch (error) {
+        if (this.signal.aborted) throw error;
+        if (attempt < 3) { await abortableWait(1000 * 2 ** attempt, this.signal); continue; }
+        throw new Error("Could not reach API v3. Check the URL, network, and the site's browser cross-origin settings.");
+      }
+      this.observeThrottle(response.headers);
+      if (response.ok) {
+        try { return await response.json(); }
+        catch (error) {
+          if (this.signal.aborted) throw error;
+          throw new Error(`API v3 returned an invalid JSON response for ${path}.`);
+        }
+      }
+      if ([429, 502, 503, 504].includes(response.status) && attempt < 3) {
+        const retryAfter = Number(response.headers.get("Retry-After"));
+        const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * 2 ** attempt;
+        this.pauseUntil = Math.max(this.pauseUntil, Date.now() + wait);
+        continue;
+      }
+      if (response.status === 401 || response.status === 403) throw new Error(`API v3 returned ${response.status} for ${path}. Check the token and its read permissions.`);
+      throw new Error(`API v3 returned ${response.status} for ${path}.`);
+    }
+    throw new Error(`API v3 request failed for ${path}.`);
+  }
+
+  observeThrottle(headers) {
+    const burst = Number(headers.get("x-burst-throttle-calls-left"));
+    const bucket = Number(headers.get("x-token-bucket-calls-left"));
+    if (headers.has("x-burst-throttle-calls-left") && Number.isFinite(burst) && burst < 5) {
+      const seconds = Number(headers.get("x-burst-throttle-seconds-until-full"));
+      if (Number.isFinite(seconds) && seconds > 0) this.pauseUntil = Math.max(this.pauseUntil, Date.now() + seconds * 1000);
+    }
+    if (headers.has("x-token-bucket-calls-left") && Number.isFinite(bucket) && bucket < 5) {
+      const seconds = Number(headers.get("x-token-bucket-seconds-until-next-refill"));
+      if (Number.isFinite(seconds) && seconds > 0) this.pauseUntil = Math.max(this.pauseUntil, Date.now() + seconds * 1000);
+    }
+  }
+
+  async allPages(path, query = {}) {
+    const all = [];
+    for (let page = 1; ; page++) {
+      const data = await this.get(path, { ...query, page, pageSize: 100 });
+      if (!Array.isArray(data.items) || !Number.isInteger(data.totalPages) || data.totalPages < 0) {
+        throw new Error(`Unexpected API v3 pagination format for ${path}.`);
+      }
+      all.push(...data.items);
+      if (page >= data.totalPages) return all;
+    }
+  }
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = "", quoted = false;
+  text = text.replace(/^\uFEFF/, "");
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (c === '"') quoted = false;
+      else cell += c;
+    } else if (c === '"' && cell === "") quoted = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell);
+      if (row.some(value => value !== "")) rows.push(row);
+      row = []; cell = "";
+    } else cell += c;
+  }
+  if (quoted) throw new Error("The rename CSV has an unclosed quoted value.");
+  row.push(cell);
+  if (row.some(value => value !== "")) rows.push(row);
+  if (!rows.length) throw new Error("The rename CSV is empty.");
+  const oldCol = rows[0].indexOf("old_team_name"), newCol = rows[0].indexOf("new_team_name");
+  if (oldCol < 0 || newCol < 0) throw new Error("The rename CSV needs old_team_name and new_team_name columns.");
+  const names = new Map();
+  for (const values of rows.slice(1)) {
+    const oldName = (values[oldCol] || "").trim(), newName = (values[newCol] || "").trim();
+    if (oldName && newName) names.set(oldName, newName);
+  }
+  return names;
+}
+
+function departmentName(value, renames, stripNumbers) {
+  if (typeof value !== "string") return "";
+  const original = value.trim();
+  if (!original) return "";
+  if (renames.has(original)) return renames.get(original);
+  return stripNumbers ? original.replace(/[\d\s._-]+$/u, "").trim() : original;
+}
+
+function makeAggregator(users, renames, stripNumbers) {
+  const teams = new Map(), pairs = new Map();
+  const stats = { users: users.length, questions: 0, answers: 0, comments: 0, skipped: 0, sameTeam: 0 };
+  for (const user of users) {
+    if (Number(user.id) > 1) teams.set(Number(user.id), departmentName(user.department, renames, stripNumbers));
+  }
+  function add(sourceId, targetId, seen) {
+    sourceId = Number(sourceId); targetId = Number(targetId);
+    if (!Number.isInteger(sourceId) || !Number.isInteger(targetId) || sourceId <= 1 || targetId <= 1) { stats.skipped++; return; }
+    if (sourceId === targetId) return;
+    const source = teams.get(sourceId), target = teams.get(targetId);
+    if (!source || !target) { stats.skipped++; return; }
+    if (source === target) { stats.sameTeam++; return; }
+    if (seen.has(target)) return;
+    seen.add(target);
+    const names = [source, target].sort((a, b) => a.localeCompare(b));
+    const key = JSON.stringify(names);
+    pairs.set(key, (pairs.get(key) || 0) + 1);
+  }
+  function question(question, answers, questionComments, answerComments) {
+    stats.questions++;
+    stats.answers += answers.length;
+    stats.comments += questionComments.length + answerComments.reduce((sum, entry) => sum + entry.comments.length, 0);
+    const asker = question.owner?.id;
+    const seenOnQuestion = new Set();
+    for (const answer of answers) add(asker, answer.owner?.id, seenOnQuestion);
+    for (const comment of questionComments) add(asker, comment.ownerUserId, seenOnQuestion);
+    for (const entry of answerComments) {
+      const seenOnAnswer = new Set();
+      for (const comment of entry.comments) {
+        if (Number(comment.ownerUserId) === Number(asker)) continue;
+        add(entry.answer.owner?.id, comment.ownerUserId, seenOnAnswer);
+      }
+    }
+  }
+  return { question, pairs, stats };
+}
+
+async function runPool(items, size, task) {
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, async () => {
+    while (next < items.length) await task(items[next++]);
+  }));
+}
+
+async function collect(client, renames, stripNumbers, from, to, update) {
+  update("Loading users…");
+  const users = await client.allPages("/users");
+  const report = makeAggregator(users, renames, stripNumbers);
+  let page = 1, totalPages = 1;
+  const query = { sort: "creation", order: "asc" };
+  if (from) query.from = from + "T00:00:00.000Z";
+  if (to) query.to = to + "T23:59:59.999Z";
+  do {
+    update(`Loading questions, page ${page} of ${totalPages}…`);
+    const data = await client.get("/questions", { ...query, page, pageSize: 100 });
+    if (!Array.isArray(data.items) || !Number.isInteger(data.totalPages) || data.totalPages < 0) throw new Error("Unexpected API v3 question pagination format.");
+    totalPages = data.totalPages;
+    await runPool(data.items, 4, async (question) => {
+      const root = `/questions/${encodeURIComponent(question.id)}`;
+      const answers = question.answerCount === 0 ? [] : await client.allPages(root + "/answers");
+      const questionComments = question.commentCount === 0 ? [] : await client.get(root + "/comments");
+      if (!Array.isArray(questionComments)) throw new Error(`Unexpected comments response for question ${question.id}.`);
+      const answerComments = [];
+      for (const answer of answers) {
+        if (answer.commentCount !== 0) {
+          const comments = await client.get(`${root}/answers/${encodeURIComponent(answer.id)}/comments`);
+          if (!Array.isArray(comments)) throw new Error(`Unexpected comments response for answer ${answer.id}.`);
+          answerComments.push({ answer, comments });
+        }
+      }
+      report.question(question, answers, questionComments, answerComments);
+      if (report.stats.questions % 10 === 0) update(`Processed ${report.stats.questions} questions…`);
+    });
+    page++;
+  } while (page <= totalPages);
+  return report;
+}
+
+function svgElement(name, attributes = {}) {
+  const element = document.createElementNS(svgNS, name);
+  for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, String(value));
+  return element;
+}
+
+function point(radius, angle) { return [425 + radius * Math.sin(angle), 425 - radius * Math.cos(angle)]; }
+function arcPath(start, end, inner, outer) {
+  const a = point(outer, start), b = point(outer, end), c = point(inner, end), d = point(inner, start);
+  const large = end - start > Math.PI ? 1 : 0;
+  return `M${a[0]},${a[1]} A${outer},${outer} 0 ${large} 1 ${b[0]},${b[1]} L${c[0]},${c[1]} A${inner},${inner} 0 ${large} 0 ${d[0]},${d[1]} Z`;
+}
+function ribbonPath(a, b) {
+  const a1 = point(278, a.start), a2 = point(278, a.end), b1 = point(278, b.start), b2 = point(278, b.end);
+  const al = a.end - a.start > Math.PI ? 1 : 0, bl = b.end - b.start > Math.PI ? 1 : 0;
+  return `M${a1[0]},${a1[1]} A278,278 0 ${al} 1 ${a2[0]},${a2[1]} Q425,425 ${b1[0]},${b1[1]} A278,278 0 ${bl} 1 ${b2[0]},${b2[1]} Q425,425 ${a1[0]},${a1[1]} Z`;
+}
+function color(index, count) { return `hsl(${Math.round(index * 360 / Math.max(count, 1))} 62% 45%)`; }
+
+function renderChart(pairRows, totals) {
+  const chart = $("chart");
+  chart.replaceChildren();
+  const names = [...totals.keys()].sort((a, b) => totals.get(b) - totals.get(a) || a.localeCompare(b));
+  if (!names.length) {
+    const message = svgElement("text", { x: 425, y: 425, "text-anchor": "middle", fill: "#5f6f86" });
+    message.textContent = "No cross-department interactions found";
+    chart.append(message);
+    return new Map();
+  }
+  const total = [...totals.values()].reduce((a, b) => a + b, 0);
+  const gap = Math.min(.035, Math.PI / names.length / 2);
+  const available = 2 * Math.PI - gap * names.length;
+  let cursor = 0;
+  const groups = new Map(), colors = new Map();
+  names.forEach((name, index) => {
+    const width = available * totals.get(name) / total;
+    groups.set(name, { start: cursor, end: cursor + width, cursor });
+    colors.set(name, color(index, names.length));
+    cursor += width + gap;
+  });
+  const ribbons = svgElement("g");
+  const arcs = svgElement("g");
+  chart.append(ribbons, arcs);
+  for (const [first, second, weight] of pairRows) {
+    const a = groups.get(first), b = groups.get(second);
+    const aWidth = available * weight / total, bWidth = available * weight / total;
+    const aSlice = { start: a.cursor, end: a.cursor + aWidth }, bSlice = { start: b.cursor, end: b.cursor + bWidth };
+    a.cursor += aWidth; b.cursor += bWidth;
+    const ribbon = svgElement("path", { d: ribbonPath(aSlice, bSlice), fill: colors.get(first), "fill-opacity": ".65", stroke: "#fff", "stroke-width": ".5", class: "ribbon" });
+    const title = svgElement("title"); title.textContent = `${first} ↔ ${second}: ${weight.toLocaleString()} interactions`;
+    ribbon.append(title);
+    ribbon.addEventListener("mouseenter", () => { $("tooltip").textContent = title.textContent; for (const other of ribbons.children) other.classList.toggle("dim", other !== ribbon); });
+    ribbon.addEventListener("mouseleave", () => { $("tooltip").textContent = ""; for (const other of ribbons.children) other.classList.remove("dim"); });
+    ribbons.append(ribbon);
+  }
+  names.forEach(name => {
+    const group = groups.get(name);
+    const arc = svgElement("path", { d: arcPath(group.start, group.end, 282, 304), fill: colors.get(name), stroke: "#fff", "stroke-width": "1", class: "arc" });
+    const title = svgElement("title"); title.textContent = `${name}: ${totals.get(name).toLocaleString()} interactions`;
+    arc.append(title); arcs.append(arc);
+    if (names.length <= 12 && group.end - group.start > .045) {
+      const mid = (group.start + group.end) / 2;
+      const [x, y] = point(321, mid);
+      const label = svgElement("text", { x, y, fill: "#2c3e56", "font-size": "12", "font-weight": "600", class: "arc-label", "text-anchor": mid > Math.PI ? "end" : "start", "dominant-baseline": "middle" });
+      label.textContent = name.length > 24 ? name.slice(0, 22) + "…" : name;
+      arcs.append(label);
+    }
+  });
+  return colors;
+}
+
+function render(report) {
+  const pairRows = [...report.pairs].map(([key, weight]) => [...JSON.parse(key), weight]).sort((a, b) => b[2] - a[2] || a[0].localeCompare(b[0]));
+  const totals = new Map();
+  for (const [a, b, weight] of pairRows) { totals.set(a, (totals.get(a) || 0) + weight); totals.set(b, (totals.get(b) || 0) + weight); }
+  const interactions = pairRows.reduce((sum, row) => sum + row[2], 0);
+  const values = [
+    [report.stats.questions, "Questions"], [report.stats.answers, "Answers"],
+    [report.stats.comments, "Comments"], [interactions, "Department interactions"]
+  ];
+  $("stats").replaceChildren(...values.map(([value, label]) => {
+    const box = document.createElement("div"), number = document.createElement("strong"), caption = document.createElement("span");
+    box.className = "stat"; number.textContent = value.toLocaleString(); caption.textContent = label;
+    box.append(number, caption); return box;
+  }));
+  const colors = renderChart(pairRows, totals);
+  const legend = [...totals].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  $("legend").replaceChildren(...legend.map(([name, count]) => {
+    const item = document.createElement("li"), swatch = document.createElement("span"), title = document.createElement("span"), value = document.createElement("span");
+    swatch.className = "swatch"; swatch.style.background = colors.get(name); title.textContent = name;
+    value.className = "legend-count"; value.textContent = count.toLocaleString(); item.append(swatch, title, value); return item;
+  }));
+  $("connections").replaceChildren(...pairRows.map(([first, second, weight]) => {
+    const row = document.createElement("tr");
+    for (const text of [first, second, weight.toLocaleString()]) { const cell = document.createElement("td"); cell.textContent = text; row.append(cell); }
+    return row;
+  }));
+  $("skipped-note").textContent = `${report.stats.users.toLocaleString()} users loaded. ${report.stats.skipped.toLocaleString()} responses could not be assigned to a department; ${report.stats.sameTeam.toLocaleString()} same-department responses were excluded.`;
+  $("report").hidden = false;
+}
+
+function matrixCsv(report) {
+  const names = new Set();
+  for (const key of report.pairs.keys()) for (const name of JSON.parse(key)) names.add(name);
+  const sorted = [...names].sort((a, b) => a.localeCompare(b));
+  const escape = value => `"${String(value).replaceAll('"', '""')}"`;
+  const lines = [["department", ...sorted].map(escape).join(",")];
+  for (const name of sorted) {
+    const row = [name, ...sorted.map(other => name === other ? 0 : report.pairs.get(JSON.stringify([name, other].sort((a, b) => a.localeCompare(b)))) || 0)];
+    lines.push(row.map(escape).join(","));
+  }
+  return lines.join("\r\n") + "\r\n";
+}
+
+function download(name, content, type) {
+  const objectUrl = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement("a");
+  link.href = objectUrl; link.download = name; link.click();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
+$("rename-file").addEventListener("change", () => {
+  $("remove-numbers").disabled = Boolean($("rename-file").files.length);
+  if ($("rename-file").files.length) $("remove-numbers").checked = false;
+});
+$("cancel-button").addEventListener("click", () => currentController?.abort());
+$("download-csv").addEventListener("click", () => { if (lastReport) download("interaction_matrix.csv", matrixCsv(lastReport), "text/csv;charset=utf-8"); });
+$("download-svg").addEventListener("click", () => {
+  const svg = $("chart").cloneNode(true);
+  svg.setAttribute("xmlns", svgNS);
+  svg.setAttribute("width", "850"); svg.setAttribute("height", "850");
+  svg.setAttribute("font-family", "system-ui, sans-serif");
+  download("chord_diagram.svg", new XMLSerializer().serializeToString(svg), "image/svg+xml;charset=utf-8");
+});
+$("report-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (currentController) return;
+  const status = $("status");
+  status.classList.remove("error");
+  lastReport = null; $("report").hidden = true;
+  try {
+    const base = apiBase($("site-url").value);
+    const token = $("access-token").value.trim();
+    if (!token) throw new Error("Enter an API v3 access token.");
+    const from = $("from-date").value, to = $("to-date").value;
+    if (from && to && from > to) throw new Error("The start date must be on or before the end date.");
+    const file = $("rename-file").files[0];
+    const renames = file ? parseCsv(await file.text()) : new Map();
+    currentController = new AbortController();
+    $("run-button").disabled = true; $("cancel-button").hidden = false;
+    const client = new ApiV3(base, token, currentController.signal);
+    const report = await collect(client, renames, $("remove-numbers").checked, from, to, message => { status.textContent = message; });
+    lastReport = report;
+    render(report);
+    status.textContent = `Report ready: ${report.stats.questions.toLocaleString()} questions processed.`;
+  } catch (error) {
+    currentController?.abort();
+    status.classList.add("error");
+    status.textContent = error.name === "AbortError" ? "Report cancelled." : error.message;
+  } finally {
+    currentController = null;
+    $("run-button").disabled = false; $("cancel-button").hidden = true;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,90 +1,39 @@
-# Stack Internal Interactions (so4t_interactions)
-An API script for Stack Internal that creates a chord diagram, demonstrating how teams are interacting within the product.
+# Stack Internal Interactions
 
-Example chord diagram:
+Create a chord diagram showing how departments interact through questions, answers, and comments in Stack Internal.
 
-![Example chord diagram](https://github.com/StackExchange/so4t_interactions_report/blob/main/Examples/chord_diagram.png)
+**Use [so4t_interactions.html](so4t_interactions.html).** It is the current, standalone version and uses **API v3 only**. The Python scripts and `requirements.txt` remain in this repository for historical reference; they are not the recommended way to run the report and may still depend on API v2.
 
+![Example chord diagram](Examples/chord_diagram.png)
 
-## Requirements
-* Python 3.10 or higher ([download](https://www.python.org/downloads/))
-* Operating system: Linux, MacOS, or Windows
-* "Department" assertion enabled in SAML configuration (admin settings)
+## Run the HTML version
 
+1. Download this repository and open `so4t_interactions.html` in a modern browser. No Python installation, web server, build step, or other file is needed.
+2. Enter your Stack Internal site URL:
+   - Enterprise: `https://your-site.stackenterprise.co` (or your custom Enterprise domain).
+   - Business: `https://stackoverflowteams.com/c/your-team`.
+3. Enter an API v3 bearer access token with read access to users, questions, answers, and comments. For Enterprise, follow your instance's API authentication guide at `https://your-site/api/docs/authentication`. For Business, use a personal access token with access to the team.
+4. Optionally choose a question date range and department naming rules, then select **Build report**.
+5. Explore the diagram and download the interaction matrix as CSV or the diagram as SVG.
 
-## Setup
+The page requests the API directly from the browser. Your browser must be able to reach the Stack Internal site, and that site must allow browser requests from a local file. If the page reports a connection or cross-origin error, ask your Stack Internal administrator to check its API browser access settings. The page does not store your token, users, or report data; closing the tab clears them.
 
-[Download](https://github.com/StackExcahnge/so4t_interactions_report/archive/refs/heads/main.zip) and unpack the contents of this repository
+## How interactions are counted
 
-**Installing Dependencies**
+The report uses API v3's paginated `/users` and `/questions` endpoints, then retrieves answers and comments through their API v3 endpoints. It counts a connection from the author of a question or answer to a responding department. Several responses from one department on the same question or answer count once. The question author commenting on an answer is not counted again. Activity within one department is excluded from the diagram. Responses from users without a known department cannot be assigned to a connection; their count appears below the report.
 
-* Open a terminal window (or, for Windows, a command prompt)
-* Navigate to the directory where you unpacked the files
-* Install the dependencies: `pip3 install -r requirements.txt`
+The report reads department values from the API's user records. Populate the Department attribute in your SAML or user provisioning configuration to make the diagram useful. You can optionally:
 
+- Upload a CSV with `old_team_name,new_team_name` columns to rename or combine departments. See [the template](Templates/team_rename.csv).
+- Remove trailing numbers from department names, such as `Eng2.1` → `Eng`. This option is unavailable when a rename CSV is supplied.
+- Restrict questions to a date range for a faster, narrower report.
 
-**API Authentication**
+Large sites can take time because API v3 returns answers and comments separately. The page shows progress and obeys API throttling responses. All requests are read-only.
 
-For the Business tier, you'll need a [personal access token](https://stackoverflowteams.help/en/articles/4385859-stack-overflow-for-teams-api) (PAT). You'll need to obtain an API key and an access token for Enterprise. Documentation for creating an Enterprise key and token can be found within your instance at this url: `https://[your_site]/api/docs/authentication`
+## Historical Python files
 
-**Generating an Access Token (Enterprise)**
+`so4t_interactions.py`, `so4t_api_v2.py`, `so4t_api_v3.py`, and `so4t_request_validate.py` are preserved for reference. They are not maintained as the current tool; `so4t_interactions.py` still calls API v2. Use the standalone HTML page above for new reports.
 
-For secure Access Token generation, follow the [Secure API Token Generation with OAuth and PKCE](https://support.stackenterprise.co/support/solutions/articles/22000294542-secure-api-token-generation-with-oauth-and-pkce) guide.
+## Support
 
-**Note on Access Token Requirements:**
-While API v3 now generally allows querying with just an API key for most GET requests, certain paths and data (e.g., `/images` and the email attribute on a `User` object) still specifically require an Access Token for access. If you encounter permissions errors on such paths, ensure you are using an Access Token.
-
-
-## Basic Usage
-In a terminal window, navigate to the directory where you unpacked the script. 
-Run the script using the following format, replacing the URL, token, and/or key with your own:
-- Business: `python3 so4t_interactions.py --url "https://stackoverflowteams.com/c/TEAM-NAME" --token "YOUR_TOKEN"`
-- Enterprise: `python3 so4t_interactions.py --url "https://SUBDOMAIN.stackenterprise.co" --key "YOUR_KEY"`
-
-At the beginning of the script, a small Chrome window will appear, prompting you to log in to your instance of Stack Internal (Enterprise). This is necessary to obtain data that is not currently available via the API.
-
-After logging in, the Chrome window will disappear, and the script will proceed in the terminal window. Creating a login session is necessary to gather additional data from Stack Internal that are unavailable via the API.
-
-The script can take several minutes to run. As it runs, it will update the terminal window with the tasks it performs.
-
-When the script completes, it will indicate that the chord diagram has been created and provide the path to the file. The file will be saved in the same directory as the script.
-
-
-## Advanced Usage
-
-You can add some additional arguments to the command line to customize the script's behavior, described below. All arguments (and instructions) can also be found by running the `--help` argument: `python3 so4t_interactions.py --help`
-
-### `--remove-team-numbers`
-
-In many organizations, team names aren't as simple as "Engineering" or "Product Management". Instead, they're often something like "Eng1" or "PM2.6". This can be problematic when it creates too much granularity for the chord diagram. 
-
-The `--remove-team-numbers` argument allows you to easily remove the team number from the team names. Example: "Eng1" and "Eng2.1" would both be renamed to simply "Eng", thus consolidating the two teams into one for the chord diagram.
-
-Example usage:
-`python3 so4t_interactions.py --url "https://SUBDOMAIN.stackenterprise.co" --key "YOUR_KEY" --remove-team-numbers`
-
-> NOTE: this argument is incompatible with the `--team-rename` argument. Choose one or the other.
-
-### `--team-rename`
-
-This is a more powerful method of changing team names. Sometimes, the team names obtained from the identity provider (via SAML) aren't ideal for a variety of reasons. Examples:
-* Too verbose: "PMO - Project Management Office - CIO Special Projects"
-* Too generic: "Team 1"
-* Too specific: "Team 1 - Argentina"
-
-Also, there's often a desire to consolidate team names that are functionally the same but have different names in the identity provider. Example: "Team 1 - Argentina" and "Team 1 - London" could be renamed to simply "Team 1".
-
-The `--team-rename` argument allows you to provide a CSV file ([template here](https://github.com/jklick-so/so4t_interactions/tree/main/Templates)) that maps the team names from the identity provider to a more appropriate name. The CSV file should have two columns:
-* `old_team_name` - the name of the team as it appears in the identity provider
-* `new_team_name` - the name you'd like to use in the chord diagram
-
-Example usage:
-`python3 so4t_interactions.py --url "https://SUBDOMAIN.stackenterprise.co" --key "YOUR_KEY" --team-rename "PATH_TO_CSV"`
-
-> NOTE: this argument is incompatible with the `--remove-team-number` argument. Choose one or the other.
-
-
-## Support, security, and legal
-If you encounter problems using the script, please leave feedback in the Github Issues. You can also clone and change the script to suit your needs. It is provided as-is, with no warranty or guarantee of any kind.
-
-All data is handled locally on the device from which the script is run. The script does not transmit data to other parties, such as Stack Overflow. All of the API calls performed are read-only, so there is no risk of editing or adding content on your Stack Internal instance.
+If you encounter a problem, open a GitHub issue with the browser and the error message shown by the page. Do not include your access token or private site data. This project is provided as-is under [LICENSE](LICENSE).
